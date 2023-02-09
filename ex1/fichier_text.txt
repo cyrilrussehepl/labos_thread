@@ -1,0 +1,164 @@
+/*--------------------------------------
+Herman Vanstapel
+
+ex02\ser.c 
+
+Un serveur recevant une structure 
+----------------------------------------*/
+
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <unistd.h>
+#include "../udplib/udplib.h"
+//#include "structure.h"
+#include "requeteme_rc.h"
+#include "LibSerME_RC.h"
+#include "data.h"
+
+static sigjmp_buf contexte;
+
+void handlerSIGTSTP(int sig){
+   printf("Interrupt CTRL Z, Demarrage du sleep\n");
+   sleep(30);
+   printf("Fin du sleep\n");
+   siglongjmp(contexte, 1);
+}
+
+void die(char *s){
+   perror(s);
+   exit(1);
+}
+
+int main(int argc,char *argv[]){
+   int rc;
+   int Desc;
+   struct sockaddr_in sthis; /* this ce programme */
+   struct sockaddr_in sos; /* s = serveur */
+   struct sockaddr_in sor; /* r = remote */
+
+   u_long  IpSocket;
+   u_short PortSocket;
+
+   int tm;
+   struct RequeteME_RC UneRequete;
+   struct VehiculeHV V;
+
+   memset(&sthis,0,sizeof(struct sockaddr_in));
+   memset(&sos,0,sizeof(struct sockaddr_in)); 
+   memset(&sor,0,sizeof(struct sockaddr_in)); 
+
+   printf("Ceci est le serveur\n");
+   if ( argc!=3){
+      printf("ser ser port cli\n");
+      exit(1);
+   }
+
+   /* Récupération IP & port   */
+   IpSocket= inet_addr(argv[1]);
+   PortSocket = atoi(argv[2]);
+
+   // Desc = CreateSockets(&psoo,&psos,,atoi(argv[2]),argv[3],atoi(argv[4]));
+   Desc=creer_socket(SOCK_DGRAM,&IpSocket,PortSocket,&sthis);
+
+   if ( Desc == -1 )
+      die("CreateSockets:");
+   else
+      printf("CreateSockets %d\n", Desc);
+
+   //Armement du signal
+   struct sigaction sig_A;
+   sig_A.sa_handler = handlerSIGTSTP;
+   sig_A.sa_flags = 0;
+   sigemptyset(&sig_A.sa_mask);
+   sigaction(SIGTSTP, &sig_A, NULL);
+
+   while(1){
+   
+   sigsetjmp(contexte, 1);
+   tm = sizeof(struct RequeteME_RC);
+   rc = ReceiveDatagram(Desc, &UneRequete ,tm, &sor);
+   if ( rc == -1 )
+      die("ReceiveDatagram");
+   else{
+      printf("bytes Lus %d type:%d\n", rc, UneRequete.Type);
+      AfficheRequeteME_RC(stderr, UneRequete);
+   }
+   
+   printf("Received packet from %s:%d\n", inet_ntoa(sor.sin_addr), ntohs(sor.sin_port));
+  
+   /* attention l'enum peut être codé en short */
+   /* reponse avec psos */
+
+   switch(UneRequete.Type){
+      case Question:
+         fprintf(stderr, "Gestion requête question\n");
+         
+         fprintf(stderr, "RechercheME_RC>\n");
+         int result_recherche = RechercheME_RC("VehiculesHV", UneRequete.Reference, &V);
+         fprintf(stderr, "RechercheME_RC<\n");
+         
+         fprintf(stderr,"res :%d Reference:%d %s\n",result_recherche, UneRequete.Puissance, UneRequete.Modele) ;
+         
+         //Vérifie si la recherche a trouvé un vehicule, set le type à "Fail" sinon
+         if(result_recherche == 1){
+            UneRequete.Type = OK;
+            UneRequete.Reference = V.Reference;
+            strcpy(UneRequete.Constructeur, V.Constructeur);
+            strcpy(UneRequete.Modele, V.Modele);
+            UneRequete.Puissance = V.Puissance;
+         }
+         else
+            UneRequete.Type = Fail;
+         break;
+      case Achat:
+         fprintf(stderr, "Gestion requête achat\n");
+
+         fprintf(stderr, "Recherche_FactureME_RC>\n");
+         if((UneRequete.NumeroFacture = Recherche_FactureME_RC("FactureHV", UneRequete.NomClient, UneRequete.Date)) > 0){
+            fprintf(stderr, "Recherche_FactureME_RC<\n");
+            printf("Doublon\n");
+            break;
+         }
+         fprintf(stderr, "Recherche_FactureME_RC<\n");
+
+         fprintf(stderr, "RechercheME_RC>\n");
+         result_recherche = RechercheME_RC("VehiculesHV", UneRequete.Reference, &V);
+         fprintf(stderr, "RechercheME_RC<\n");
+         
+         //Vérifie si la ref est correcte
+         if(UneRequete.Reference > 0 && result_recherche == 1){
+            printf("Trouve: %s, %s Quantite: %d\n", V.Constructeur, V.Modele, V.Quantite);
+            //Vérifie si il y a assez de stock du véhicule que le client veut acheter
+            if(UneRequete.Quantite > 0 && V.Quantite >= UneRequete.Quantite){
+               fprintf(stderr, "AchatME_RC>\n");
+               AchatME_RC("VehiculesHV", UneRequete.Reference, UneRequete.Quantite);
+               fprintf(stderr, "AchatME_RC<\n");
+
+               fprintf(stderr, "FacturationME_RC>\n");
+               UneRequete.NumeroFacture = FacturationME_RC("FactureHV", UneRequete.NomClient, UneRequete.Quantite, UneRequete.Reference, UneRequete.Date);
+               fprintf(stderr, "FacturationME_RC<\n");
+            }
+            else{
+               fprintf(stderr, "Stock insuffisant pour achat demandé\n");
+               UneRequete.NumeroFacture = -1;
+            }
+         }
+         else 
+            fprintf(stderr, "Aucun véhicule\n");
+
+         break;
+
+   }
+  
+   //Send réponse
+   rc = SendDatagram(Desc, &UneRequete, sizeof(struct RequeteME_RC), &sor);
+   if ( rc == -1 )
+      die("SendDatagram:");
+   else
+      printf("bytes ecrits:%d\n", rc);
+   }
+
+   close(Desc);
+}
