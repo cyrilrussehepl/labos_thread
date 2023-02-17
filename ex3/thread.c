@@ -27,8 +27,12 @@ pthread_t tid[4];
 pthread_mutex_t mutex_donnee, mutex_compteur;
 pthread_cond_t condCompteur;
 int compteur = 0;
+pthread_key_t cle;
 
 //fonction threads
+void destructeur(void *p){
+   free(p);
+}
 
 void fctFinThread(void *p){
    printf("Thread %d.%d se termine\n", getpid(), pthread_self());
@@ -40,13 +44,12 @@ void fctFinThread(void *p){
 
 void *fctThread(void *p){
 
-   char nom[20];
-   struct timespec time;
+   struct timespec time, remaining;
    time.tv_nsec = 0;
-
-   DONNEE *par = (DONNEE*)p;
-   time.tv_sec = par->nbSecondes;
-   strcpy(nom, par->nom);
+   time.tv_sec = ((DONNEE*)p)->nbSecondes;
+   char *nom = (char*)malloc(sizeof(char)*(strlen(((DONNEE*)p)->nom)+1));
+   strcpy(nom, ((DONNEE*)p)->nom);
+   pthread_setspecific(cle, (void*)nom);
    //Fin section critique
    pthread_mutex_unlock(&mutex_donnee);
 
@@ -62,7 +65,8 @@ void *fctThread(void *p){
    printf("thread %d.%d lancé :->nom : %s\n", getpid(), pthread_self(), nom);
    
    //Attente
-   nanosleep(&time, NULL);
+   while(nanosleep(&time, &remaining)!=0)
+      time = remaining;
 
    //section fin de thread
    pthread_cleanup_pop(1);
@@ -74,7 +78,7 @@ void *fctThread(void *p){
 
 //Gestionnaire de signaux
 void HandlerSIGINT(int sig){
-   printf("thread %d a recu le signal SIGINT\n", pthread_self());
+   printf("Thread %d.%d s'occupe de %s\n", getpid(), pthread_self(), (char*)pthread_getspecific(cle));
 }
 
 //Main
@@ -108,6 +112,9 @@ int main(){
    sigemptyset(&mask);
    sigaddset(&mask, SIGINT);
    sigprocmask(SIG_SETMASK, &mask, NULL);
+
+   //Création de la clé
+   pthread_key_create(&cle, destructeur);
 
    //Création des threads
    for(int i =0; strcmp(data[i].nom, "")!=0;i++){
