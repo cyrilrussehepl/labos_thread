@@ -132,10 +132,15 @@ int main(){
       pthread_cond_wait(&condCompteur, &mutex_compteur);
    pthread_mutex_unlock(&mutex_compteur);
 
+   //clear thread
+   for(int i = 0; i<4; i++)
+      pthread_join(tid[i], NULL);
+
    //fin prog
    pthread_mutex_destroy(&mutex_donnee);
    pthread_mutex_destroy(&mutex_compteur);
    pthread_cond_destroy(&condCompteur);
+   pthread_key_delete(cle);
 
    printf("Fin du thread principal\n");
    exit(EXIT_SUCCESS);
