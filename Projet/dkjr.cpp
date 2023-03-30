@@ -92,7 +92,6 @@ int main(int argc, char *argv[])
 	//Set masque par défaut pour tout le monde
 	sigset_t mask;
 	sigfillset(&mask);
-	sigdelset(&mask, SIGINT);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	//Armement des signaux
@@ -100,18 +99,37 @@ int main(int argc, char *argv[])
 	A.sa_handler = HandlerSIGQUIT;
 	sigemptyset(&A.sa_mask);
 	A.sa_flags = 0;
-
 	if (sigaction(SIGQUIT, &A, NULL) == -1)
 	{
 		perror("Erreur de sigaction");
 		exit(EXIT_FAILURE);
 	}
+
 	struct sigaction B;
 	B.sa_handler = HandlerSIGALRM;
 	sigemptyset(&B.sa_mask);
 	B.sa_flags = 0;
-
 	if (sigaction(SIGALRM, &B, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+
+	struct sigaction C;
+	C.sa_handler = HandlerSIGINT;
+	sigemptyset(&C.sa_mask);
+	C.sa_flags = 0;
+	if (sigaction(SIGINT, &C, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+
+	struct sigaction D;
+	D.sa_handler = HandlerSIGUSR1;
+	sigemptyset(&D.sa_mask);
+	D.sa_flags = 0;
+	if (sigaction(SIGUSR1, &D, NULL) == -1)
 	{
 		perror("Erreur de sigaction");
 		exit(EXIT_FAILURE);
@@ -137,6 +155,9 @@ int main(int argc, char *argv[])
 
 	if (pthread_cond_init(&condScore, NULL))
 		perror("Erreur d'initialisation de la variable de condition condScore");
+
+	if (pthread_key_create(&keySpec, DestructeurVS))
+		perror("Erreur lors de la création de la clé spécifique");
 
 	// Initialisation de la grille
 	initGrilleJeu();
@@ -355,9 +376,11 @@ void *FctThreadDKJr(void *)
 	time_end_jmp.tv_nsec = 500000000;
 	time_end_jmp.tv_sec = 0;
 
+	//Masque tous les signaux sauf SIGQUIT et SIGINT
 	sigset_t mask;
 	sigfillset(&mask);
 	sigdelset(&mask, SIGQUIT);
+	sigdelset(&mask, SIGINT);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	pthread_mutex_lock(&mutexGrilleJeu);
@@ -400,6 +423,16 @@ void *FctThreadDKJr(void *)
 			case SDLK_UP:
 				setGrilleJeu(3, positionDKJr);
 				effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+
+				//Check collision corbeau
+				if(grilleJeu[2][positionDKJr].type == CORBEAU){
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					kill(getpid(), SIGUSR1);
+					pthread_mutex_unlock(&mutexEvenement);
+					pthread_exit(NULL);
+					return NULL;
+				}
+
 				setGrilleJeu(2, positionDKJr, DKJR, getpid());
 				if (positionDKJr == 7)
 				{
@@ -581,8 +614,8 @@ void *FctThreadDKJr(void *)
 				break;
 			}
 		}
-			pthread_mutex_unlock(&mutexGrilleJeu);
-			pthread_mutex_unlock(&mutexEvenement);
+		pthread_mutex_unlock(&mutexGrilleJeu);
+		pthread_mutex_unlock(&mutexEvenement);
 	}
 
 	pthread_exit(0);
@@ -612,35 +645,122 @@ void *FctThreadScore(void *){
 	pthread_exit(NULL);
 	return NULL;
 }
+
 void *FctThreadEnnemis(void *){
 	sigset_t mask;
 	sigfillset(&mask);
 	sigdelset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
+	srand(time(NULL));
+
+	pthread_t threadCorbeaux[3];
+	int index_corbeau = 0;
+	int random_ennemy = 1;
+
 	alarm(15);
 	while(true){
 		usleep(delaiEnnemis*1000);
-		printf("Nouvel ennemis délai : %d\n", delaiEnnemis);
+		// random_ennemy = rand()%2;
+		if(random_ennemy){
+			if(pthread_create(&threadCorbeaux[index_corbeau], NULL, FctThreadCorbeau, NULL))
+				perror("Erreur lors de l'initialisation du thread corbeau");
+		
+			index_corbeau = (++index_corbeau)%4;
+		}
+		// else{
+		// }
 	}
 
+	pthread_exit(NULL);
+	return NULL;
 }
-void *FctThreadCorbeau(void *);
+
+void *FctThreadCorbeau(void *){
+	int *position = (int*)malloc(sizeof(int));
+	pthread_setspecific(keySpec, (void*)position);
+	int img = 1;
+	*position = 0;
+
+	sigset_t mask;
+	sigfillset(&mask);
+	sigdelset(&mask, SIGUSR1);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+	
+	while(*position<=7){
+		pthread_mutex_lock(&mutexGrilleJeu);
+		//Collision corbeau
+		if(grilleJeu[2][*position].type == DKJR){
+			pthread_mutex_unlock(&mutexGrilleJeu);
+			kill(getpid(), SIGINT);
+			pthread_exit(NULL);
+			return NULL;
+		}
+		setGrilleJeu(2, (*position), CORBEAU, pthread_self());
+		afficherCorbeau((*position)*2 + 8, img+1);
+		pthread_mutex_unlock(&mutexGrilleJeu);
+		
+		usleep(700000);
+
+		pthread_mutex_lock(&mutexGrilleJeu);
+		setGrilleJeu(2, (*position));
+		effacerCarres(10-img, (*position)*2 + 8, 1+img, 1);
+		img = (++img)%2;
+		(*position)++;
+		pthread_mutex_unlock(&mutexGrilleJeu);
+	}
+
+	pthread_exit(NULL);
+	return NULL;
+}
+
 void *FctThreadCroco(void *);
 
 // Handlers---------------------------------------------
-void HandlerSIGUSR1(int);
+void HandlerSIGUSR1(int){
+	int positionCorbeau = *(int*)pthread_getspecific(keySpec);
+	//Pas le bon corbeau
+	if(positionCorbeau != positionDKJr){
+		kill(getpid(), SIGUSR1);
+		return;
+	}
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(2, positionCorbeau);
+	pthread_mutex_unlock(&mutexGrilleJeu);
+
+	effacerCarres(9, positionCorbeau*2+8, 2, 1);
+	pthread_exit(NULL);
+}
+
 void HandlerSIGUSR2(int);
+
 void HandlerSIGALRM(int){
 	delaiEnnemis -= 250;
 	if(delaiEnnemis > 2500)
 		alarm(15);
 }
-void HandlerSIGINT(int);
+
+void HandlerSIGINT(int){
+	effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
+	setGrilleJeu(2, positionDKJr);
+
+	if(etatDKJr == LIBRE_BAS)
+		pthread_mutex_unlock(&mutexEvenement);
+
+	pthread_exit(NULL);
+}
+
 void HandlerSIGQUIT(int)
 {
 	return;
 }
 
 void HandlerSIGCHLD(int);
+
 void HandlerSIGHUP(int);
+
+
+//Destructeur variable spécifique
+void DestructeurVS(void *p){
+   free(p);
+}
