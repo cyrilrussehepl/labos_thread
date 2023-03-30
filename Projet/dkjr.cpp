@@ -89,17 +89,29 @@ int main(int argc, char *argv[])
 {
 	int evt, nbViePerdues = 0;
 
+	//Set masque par défaut pour tout le monde
 	sigset_t mask;
 	sigfillset(&mask);
 	sigdelset(&mask, SIGINT);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
+	//Armement des signaux
 	struct sigaction A;
 	A.sa_handler = HandlerSIGQUIT;
 	sigemptyset(&A.sa_mask);
 	A.sa_flags = 0;
 
 	if (sigaction(SIGQUIT, &A, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+	struct sigaction B;
+	B.sa_handler = HandlerSIGALRM;
+	sigemptyset(&B.sa_mask);
+	B.sa_flags = 0;
+
+	if (sigaction(SIGALRM, &B, NULL) == -1)
 	{
 		perror("Erreur de sigaction");
 		exit(EXIT_FAILURE);
@@ -137,10 +149,13 @@ int main(int argc, char *argv[])
 		perror("Erreur de création du thread threadEvenements");
 
 	if (pthread_create(&threadDK, NULL, FctThreadDK, NULL))
-		perror("Erreur de création du thread threadEvenements");
+		perror("Erreur de création du thread threadDK");
 
 	if (pthread_create(&threadScore, NULL, FctThreadScore, NULL))
-		perror("Erreur de création du thread threadEvenements");
+		perror("Erreur de création du thread threadScore");
+
+	if (pthread_create(&threadEnnemis, NULL, FctThreadEnnemis, NULL))
+		perror("Erreur de création du thread threadEnnemis");
 
 	while (nbViePerdues < 3)
 	{
@@ -597,14 +612,30 @@ void *FctThreadScore(void *){
 	pthread_exit(NULL);
 	return NULL;
 }
-void *FctThreadEnnemis(void *);
+void *FctThreadEnnemis(void *){
+	sigset_t mask;
+	sigfillset(&mask);
+	sigdelset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
+	alarm(15);
+	while(true){
+		usleep(delaiEnnemis*1000);
+		printf("Nouvel ennemis délai : %d\n", delaiEnnemis);
+	}
+
+}
 void *FctThreadCorbeau(void *);
 void *FctThreadCroco(void *);
 
 // Handlers---------------------------------------------
 void HandlerSIGUSR1(int);
 void HandlerSIGUSR2(int);
-void HandlerSIGALRM(int);
+void HandlerSIGALRM(int){
+	delaiEnnemis -= 250;
+	if(delaiEnnemis > 2500)
+		alarm(15);
+}
 void HandlerSIGINT(int);
 void HandlerSIGQUIT(int)
 {
