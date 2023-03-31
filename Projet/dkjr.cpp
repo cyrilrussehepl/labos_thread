@@ -89,12 +89,12 @@ int main(int argc, char *argv[])
 {
 	int evt, nbViePerdues = 0;
 
-	//Set masque par défaut pour tout le monde
+	// Set masque par défaut pour tout le monde
 	sigset_t mask;
 	sigfillset(&mask);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
-	//Armement des signaux
+	// Armement des signaux
 	struct sigaction A;
 	A.sa_handler = HandlerSIGQUIT;
 	sigemptyset(&A.sa_mask);
@@ -130,6 +130,36 @@ int main(int argc, char *argv[])
 	sigemptyset(&D.sa_mask);
 	D.sa_flags = 0;
 	if (sigaction(SIGUSR1, &D, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+
+	struct sigaction E;
+	E.sa_handler = HandlerSIGUSR2;
+	sigemptyset(&E.sa_mask);
+	E.sa_flags = 0;
+	if (sigaction(SIGUSR2, &E, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+
+	struct sigaction F;
+	F.sa_handler = HandlerSIGHUP;
+	sigemptyset(&F.sa_mask);
+	F.sa_flags = 0;
+	if (sigaction(SIGHUP, &F, NULL) == -1)
+	{
+		perror("Erreur de sigaction");
+		exit(EXIT_FAILURE);
+	}
+
+	struct sigaction G;
+	G.sa_handler = HandlerSIGCHLD;
+	sigemptyset(&G.sa_mask);
+	G.sa_flags = 0;
+	if (sigaction(SIGCHLD, &G, NULL) == -1)
 	{
 		perror("Erreur de sigaction");
 		exit(EXIT_FAILURE);
@@ -331,7 +361,8 @@ void *FctThreadDK(void *)
 		}
 		MAJDK = false;
 		pthread_cond_wait(&condDK, &mutexDK);
-		if(MAJDK){
+		if (MAJDK)
+		{
 			switch (nbrRestant)
 			{
 			case 4:
@@ -365,6 +396,17 @@ void *FctThreadDK(void *)
 	return NULL;
 }
 
+void deleteEnnemisResetDkJr(void)
+{
+	for (int i = 0; i < 4; i++)
+	{
+		if (grilleJeu[3][i].type == CROCO)
+			pthread_kill(grilleJeu[3][i].tid, SIGUSR2);
+		if (grilleJeu[2][i].type == CORBEAU)
+			pthread_kill(grilleJeu[2][i].tid, SIGUSR1);
+	}
+}
+
 void *FctThreadDKJr(void *)
 {
 	bool on = true;
@@ -376,15 +418,19 @@ void *FctThreadDKJr(void *)
 	time_end_jmp.tv_nsec = 500000000;
 	time_end_jmp.tv_sec = 0;
 
-	//Masque tous les signaux sauf SIGQUIT et SIGINT
+	// Masque tous les signaux sauf SIGQUIT, SIGINT, SIGHUP et SIGCHLD
 	sigset_t mask;
 	sigfillset(&mask);
 	sigdelset(&mask, SIGQUIT);
 	sigdelset(&mask, SIGINT);
+	sigdelset(&mask, SIGCHLD);
+	sigdelset(&mask, SIGHUP);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
+	deleteEnnemisResetDkJr();
+
 	pthread_mutex_lock(&mutexGrilleJeu);
-	setGrilleJeu(3, 1, DKJR, getpid());
+	setGrilleJeu(3, 1, DKJR, pthread_self());
 	pthread_mutex_unlock(&mutexGrilleJeu);
 	afficherDKJr(11, 9, 1);
 	etatDKJr = LIBRE_BAS;
@@ -406,8 +452,18 @@ void *FctThreadDKJr(void *)
 					setGrilleJeu(3, positionDKJr);
 					effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
 					positionDKJr--;
-					setGrilleJeu(3, positionDKJr, DKJR, getpid());
-					afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					if (grilleJeu[3][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[3][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
+					else
+					{
+						setGrilleJeu(3, positionDKJr, DKJR, pthread_self());
+						afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					}
 				}
 				break;
 			case SDLK_RIGHT:
@@ -416,24 +472,35 @@ void *FctThreadDKJr(void *)
 					setGrilleJeu(3, positionDKJr);
 					effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
 					positionDKJr++;
-					setGrilleJeu(3, positionDKJr, DKJR, getpid());
-					afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					if (grilleJeu[3][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[3][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
+					else
+					{
+						setGrilleJeu(3, positionDKJr, DKJR, pthread_self());
+						afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					}
 				}
 				break;
 			case SDLK_UP:
 				setGrilleJeu(3, positionDKJr);
 				effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
 
-				//Check collision corbeau
-				if(grilleJeu[2][positionDKJr].type == CORBEAU){
+				// Check collision corbeau
+				if (grilleJeu[2][positionDKJr].type == CORBEAU)
+				{
 					pthread_mutex_unlock(&mutexGrilleJeu);
-					kill(getpid(), SIGUSR1);
+					pthread_kill(grilleJeu[2][positionDKJr].tid, SIGUSR1);
 					pthread_mutex_unlock(&mutexEvenement);
 					pthread_exit(NULL);
 					return NULL;
 				}
 
-				setGrilleJeu(2, positionDKJr, DKJR, getpid());
+				setGrilleJeu(2, positionDKJr, DKJR, pthread_self());
 				if (positionDKJr == 7)
 				{
 					etatDKJr = DOUBLE_LIANE_BAS;
@@ -454,8 +521,18 @@ void *FctThreadDKJr(void *)
 
 					setGrilleJeu(2, positionDKJr);
 					effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-					setGrilleJeu(3, positionDKJr, DKJR, getpid());
-					afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					if (grilleJeu[3][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[3][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
+					else
+					{
+						setGrilleJeu(3, positionDKJr, DKJR, pthread_self());
+						afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+					}
 				}
 				break;
 			}
@@ -466,8 +543,18 @@ void *FctThreadDKJr(void *)
 				etatDKJr = LIBRE_BAS;
 				setGrilleJeu(2, positionDKJr);
 				effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-				setGrilleJeu(3, positionDKJr, DKJR, getpid());
-				afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+				if (grilleJeu[3][positionDKJr].type == CROCO)
+				{
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					pthread_kill(grilleJeu[3][positionDKJr].tid, SIGUSR2);
+					pthread_mutex_unlock(&mutexEvenement);
+					pthread_exit(NULL);
+				}
+				else
+				{
+					setGrilleJeu(3, positionDKJr, DKJR, pthread_self());
+					afficherDKJr(11, (positionDKJr * 2) + 7, ((positionDKJr - 1) % 4) + 1);
+				}
 			}
 			break;
 		case DOUBLE_LIANE_BAS:
@@ -477,15 +564,35 @@ void *FctThreadDKJr(void *)
 				etatDKJr = LIBRE_HAUT;
 				setGrilleJeu(2, positionDKJr);
 				effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-				setGrilleJeu(1, positionDKJr, DKJR, getpid());
-				afficherDKJr(7, (positionDKJr * 2) + 7, 6);
+				if (grilleJeu[1][positionDKJr].type == CROCO)
+				{
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					pthread_kill(grilleJeu[1][positionDKJr].tid, SIGUSR2);
+					pthread_mutex_unlock(&mutexEvenement);
+					pthread_exit(NULL);
+				}
+				else
+				{
+					setGrilleJeu(1, positionDKJr, DKJR, pthread_self());
+					afficherDKJr(7, (positionDKJr * 2) + 7, 6);
+				}
 				break;
 			case SDLK_DOWN:
 				etatDKJr = LIBRE_BAS;
 				setGrilleJeu(2, positionDKJr);
 				effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-				setGrilleJeu(3, positionDKJr, DKJR, getpid());
-				afficherDKJr(11, (positionDKJr * 2) + 7, 3);
+				if (grilleJeu[3][positionDKJr].type == CROCO)
+				{
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					pthread_kill(grilleJeu[3][positionDKJr].tid, SIGUSR2);
+					pthread_mutex_unlock(&mutexEvenement);
+					pthread_exit(NULL);
+				}
+				else
+				{
+					setGrilleJeu(3, positionDKJr, DKJR, pthread_self());
+					afficherDKJr(11, (positionDKJr * 2) + 7, 3);
+				}
 				break;
 			}
 			break;
@@ -498,14 +605,14 @@ void *FctThreadDKJr(void *)
 					etatDKJr = LIANE_HAUT;
 					setGrilleJeu(1, positionDKJr);
 					effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
-					setGrilleJeu(0, positionDKJr, DKJR, getpid());
+					setGrilleJeu(0, positionDKJr, DKJR, pthread_self());
 					afficherDKJr(6, (positionDKJr * 2) + 7, 7);
 				}
 				else if (positionDKJr == 3 || positionDKJr == 4)
 				{
 					setGrilleJeu(1, positionDKJr);
 					effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
-					setGrilleJeu(0, positionDKJr, DKJR, getpid());
+					setGrilleJeu(0, positionDKJr, DKJR, pthread_self());
 					afficherDKJr(6, (positionDKJr * 2) + 7, 8);
 
 					pthread_mutex_unlock(&mutexGrilleJeu);
@@ -514,8 +621,18 @@ void *FctThreadDKJr(void *)
 
 					setGrilleJeu(0, positionDKJr);
 					effacerCarres(6, (positionDKJr * 2) + 7, 2, 2);
-					setGrilleJeu(1, positionDKJr, DKJR, getpid());
-					afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					if (grilleJeu[1][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[1][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
+					else
+					{
+						setGrilleJeu(1, positionDKJr, DKJR, pthread_self());
+						afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					}
 				}
 				break;
 			case SDLK_RIGHT:
@@ -524,11 +641,21 @@ void *FctThreadDKJr(void *)
 					setGrilleJeu(1, positionDKJr);
 					effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
 					positionDKJr++;
-					setGrilleJeu(1, positionDKJr, DKJR, getpid());
-					if (positionDKJr == 7)
-						afficherDKJr(7, (positionDKJr * 2) + 7, 6);
+					if (grilleJeu[1][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[1][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
 					else
-						afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					{
+						setGrilleJeu(1, positionDKJr, DKJR, pthread_self());
+						if (positionDKJr == 7)
+							afficherDKJr(7, (positionDKJr * 2) + 7, 6);
+						else
+							afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					}
 				}
 				break;
 			case SDLK_LEFT:
@@ -537,8 +664,18 @@ void *FctThreadDKJr(void *)
 					setGrilleJeu(1, positionDKJr);
 					effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
 					positionDKJr--;
-					setGrilleJeu(1, positionDKJr, DKJR, getpid());
-					afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					if (grilleJeu[1][positionDKJr].type == CROCO)
+					{
+						pthread_mutex_unlock(&mutexGrilleJeu);
+						pthread_kill(grilleJeu[1][positionDKJr].tid, SIGUSR2);
+						pthread_mutex_unlock(&mutexEvenement);
+						pthread_exit(NULL);
+					}
+					else
+					{
+						setGrilleJeu(1, positionDKJr, DKJR, pthread_self());
+						afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
+					}
 				}
 				else if (positionDKJr == 3)
 				{
@@ -552,25 +689,25 @@ void *FctThreadDKJr(void *)
 
 					if (grilleJeu[0][1].type == CLE)
 					{
-						//Réveil threadDK
+						// Réveil threadDK
 						pthread_mutex_lock(&mutexDK);
 						MAJDK = true;
 						pthread_mutex_unlock(&mutexDK);
 						pthread_cond_signal(&condDK);
-						//Réveil threadScore
+						// Réveil threadScore
 						pthread_mutex_lock(&mutexScore);
 						MAJScore = true;
 						score += 10;
 						pthread_mutex_unlock(&mutexScore);
 						pthread_cond_signal(&condScore);
 
-
 						effacerCarres(5, 12, 3, 2);
 
-						//afficher grab cle
+						// afficher grab cle
 
-						//Réinitialisation
-						setGrilleJeu(3, 1, DKJR, getpid());
+						// Réinitialisation
+						deleteEnnemisResetDkJr();
+						setGrilleJeu(3, 1, DKJR, pthread_self());
 						afficherDKJr(11, 9, 1);
 						etatDKJr = LIBRE_BAS;
 						positionDKJr = 1;
@@ -590,29 +727,39 @@ void *FctThreadDKJr(void *)
 						pthread_mutex_unlock(&mutexGrilleJeu);
 						pthread_exit(NULL);
 					}
-					break;
-				case SDLK_DOWN:
-					if (positionDKJr == 7)
-					{
-						etatDKJr = DOUBLE_LIANE_BAS;
-						setGrilleJeu(1, positionDKJr);
-						effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
-						setGrilleJeu(2, positionDKJr, DKJR, getpid());
-						afficherDKJr(10, (positionDKJr * 2) + 7, 5);
-					}
 				}
 				break;
-			case LIANE_HAUT:
-				if (evenement == SDLK_DOWN)
+			case SDLK_DOWN:
+				if (positionDKJr == 7)
 				{
-					etatDKJr = LIBRE_HAUT;
-					setGrilleJeu(0, positionDKJr);
-					effacerCarres(6, (positionDKJr * 2) + 7, 2, 2);
-					setGrilleJeu(1, positionDKJr, DKJR, getpid());
+					etatDKJr = DOUBLE_LIANE_BAS;
+					setGrilleJeu(1, positionDKJr);
+					effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
+					setGrilleJeu(2, positionDKJr, DKJR, pthread_self());
+					afficherDKJr(10, (positionDKJr * 2) + 7, 5);
+				}
+			}
+			break;
+		case LIANE_HAUT:
+			if (evenement == SDLK_DOWN)
+			{
+				etatDKJr = LIBRE_HAUT;
+				setGrilleJeu(0, positionDKJr);
+				effacerCarres(6, (positionDKJr * 2) + 7, 2, 2);
+				if (grilleJeu[1][positionDKJr].type == CROCO)
+				{
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					pthread_kill(grilleJeu[1][positionDKJr].tid, SIGUSR2);
+					pthread_mutex_unlock(&mutexEvenement);
+					pthread_exit(NULL);
+				}
+				else
+				{
+					setGrilleJeu(1, positionDKJr, DKJR, pthread_self());
 					afficherDKJr(7, (positionDKJr * 2) + 7, 7 - positionDKJr);
 				}
-				break;
 			}
+			break;
 		}
 		pthread_mutex_unlock(&mutexGrilleJeu);
 		pthread_mutex_unlock(&mutexEvenement);
@@ -622,31 +769,35 @@ void *FctThreadDKJr(void *)
 	return NULL;
 }
 
-void *FctThreadScore(void *){
+void *FctThreadScore(void *)
+{
 	int chiffre = -1, tempScore;
-	
+
 	pthread_mutex_lock(&mutexScore);
 	while (true)
 	{
-		if(MAJScore){
+		if (MAJScore)
+		{
 			MAJScore = false;
 			tempScore = score;
 			effacerCarres(3, 26, 1, 4);
-			for(int i = 0; i<4;i++){
-				chiffre = tempScore%10;
-				afficherChiffre(3, 29-i, chiffre);
+			for (int i = 0; i < 4; i++)
+			{
+				chiffre = tempScore % 10;
+				afficherChiffre(3, 29 - i, chiffre);
 				tempScore /= 10;
 			}
 		}
 		pthread_cond_wait(&condScore, &mutexScore);
-	}	
+	}
 	pthread_mutex_unlock(&mutexScore);
 
 	pthread_exit(NULL);
 	return NULL;
 }
 
-void *FctThreadEnnemis(void *){
+void *FctThreadEnnemis(void *)
+{
 	sigset_t mask;
 	sigfillset(&mask);
 	sigdelset(&mask, SIGALRM);
@@ -655,30 +806,39 @@ void *FctThreadEnnemis(void *){
 	srand(time(NULL));
 
 	pthread_t threadCorbeaux[3];
-	int index_corbeau = 0;
+	pthread_t threadCrocos[4];
+	int index_corbeau = 0, index_crocos = 0;
 	int random_ennemy = 1;
 
 	alarm(15);
-	while(true){
-		usleep(delaiEnnemis*1000);
-		// random_ennemy = rand()%2;
-		if(random_ennemy){
-			if(pthread_create(&threadCorbeaux[index_corbeau], NULL, FctThreadCorbeau, NULL))
+	while (true)
+	{
+		usleep(delaiEnnemis * 1000);
+		random_ennemy = rand() % 2;
+		if (random_ennemy)
+		{
+			if (pthread_create(&threadCorbeaux[index_corbeau], NULL, FctThreadCorbeau, NULL))
 				perror("Erreur lors de l'initialisation du thread corbeau");
-		
-			index_corbeau = (++index_corbeau)%4;
+
+			index_corbeau = (++index_corbeau) % 3;
 		}
-		// else{
-		// }
+		else
+		{
+			if (pthread_create(&threadCrocos[index_crocos], NULL, FctThreadCroco, NULL))
+				perror("Erreur lors de l'initialisation du thread croco");
+
+			index_crocos = (++index_crocos) % 4;
+		}
 	}
 
 	pthread_exit(NULL);
 	return NULL;
 }
 
-void *FctThreadCorbeau(void *){
-	int *position = (int*)malloc(sizeof(int));
-	pthread_setspecific(keySpec, (void*)position);
+void *FctThreadCorbeau(void *)
+{
+	int *position = (int *)malloc(sizeof(int));
+	pthread_setspecific(keySpec, (void *)position);
 	int img = 1;
 	*position = 0;
 
@@ -686,26 +846,28 @@ void *FctThreadCorbeau(void *){
 	sigfillset(&mask);
 	sigdelset(&mask, SIGUSR1);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
-	
-	while(*position<=7){
+
+	while (*position <= 7)
+	{
 		pthread_mutex_lock(&mutexGrilleJeu);
-		//Collision corbeau
-		if(grilleJeu[2][*position].type == DKJR){
+		// Collision corbeau
+		if (grilleJeu[2][*position].type == DKJR)
+		{
 			pthread_mutex_unlock(&mutexGrilleJeu);
-			kill(getpid(), SIGINT);
+			pthread_kill(grilleJeu[2][*position].tid, SIGINT);
 			pthread_exit(NULL);
 			return NULL;
 		}
 		setGrilleJeu(2, (*position), CORBEAU, pthread_self());
-		afficherCorbeau((*position)*2 + 8, img+1);
+		afficherCorbeau((*position) * 2 + 8, img + 1);
 		pthread_mutex_unlock(&mutexGrilleJeu);
-		
+
 		usleep(700000);
 
 		pthread_mutex_lock(&mutexGrilleJeu);
 		setGrilleJeu(2, (*position));
-		effacerCarres(10-img, (*position)*2 + 8, 1+img, 1);
-		img = (++img)%2;
+		effacerCarres(10 - img, (*position) * 2 + 8, 1 + img, 1);
+		img = (++img) % 2;
 		(*position)++;
 		pthread_mutex_unlock(&mutexGrilleJeu);
 	}
@@ -714,37 +876,139 @@ void *FctThreadCorbeau(void *){
 	return NULL;
 }
 
-void *FctThreadCroco(void *);
+void *FctThreadCroco(void *)
+{
+	S_CROCO *pos_croco = (S_CROCO *)malloc(sizeof(S_CROCO));
+	pthread_setspecific(keySpec, pos_croco);
+	pos_croco->haut = true;
+	pos_croco->position = 2;
+
+	sigset_t mask;
+	sigfillset(&mask);
+	sigdelset(&mask, SIGUSR2);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
+	while (pos_croco->position > 0)
+	{
+		pthread_mutex_lock(&mutexGrilleJeu);
+		if (pos_croco->haut)
+		{
+			if (pos_croco->position == 8)
+				afficherCroco(23, 3);
+			else
+			{
+				if (grilleJeu[1][pos_croco->position].type == DKJR)
+				{
+					pthread_mutex_unlock(&mutexGrilleJeu);
+					pthread_kill(grilleJeu[1][pos_croco->position].tid, SIGHUP);
+					pthread_exit(NULL);
+					return NULL;
+				}
+
+				afficherCroco((pos_croco->position) * 2 + 7, 1);
+				setGrilleJeu(1, pos_croco->position, CROCO, pthread_self());
+			}
+		}
+		else
+		{
+			if (grilleJeu[3][pos_croco->position].type == DKJR)
+			{
+				pthread_mutex_unlock(&mutexGrilleJeu);
+				pthread_kill(grilleJeu[3][pos_croco->position].tid, SIGCHLD);
+				pthread_exit(NULL);
+				return NULL;
+			}
+
+			afficherCroco(pos_croco->position * 2 + 8, 4);
+			setGrilleJeu(3, pos_croco->position, CROCO, pthread_self());
+		}
+		pthread_mutex_unlock(&mutexGrilleJeu);
+
+		usleep(700000);
+
+		pthread_mutex_lock(&mutexGrilleJeu);
+		if (pos_croco->haut)
+		{
+			if (pos_croco->position == 8)
+			{
+				effacerCarres(9, 23);
+				pos_croco->position--;
+				pos_croco->haut = false;
+			}
+			else
+			{
+				effacerCarres(8, pos_croco->position * 2 + 7);
+				setGrilleJeu(1, pos_croco->position);
+				pos_croco->position++;
+			}
+		}
+		else
+		{
+			effacerCarres(12, pos_croco->position * 2 + 8);
+			setGrilleJeu(3, pos_croco->position);
+			pos_croco->position--;
+		}
+		pthread_mutex_unlock(&mutexGrilleJeu);
+	}
+
+	pthread_exit(NULL);
+	return NULL;
+}
 
 // Handlers---------------------------------------------
-void HandlerSIGUSR1(int){
-	int positionCorbeau = *(int*)pthread_getspecific(keySpec);
-	//Pas le bon corbeau
-	if(positionCorbeau != positionDKJr){
-		kill(getpid(), SIGUSR1);
-		return;
-	}
+void HandlerSIGUSR1(int)
+{
+	int positionCorbeau = *(int *)pthread_getspecific(keySpec);
+
 	pthread_mutex_lock(&mutexGrilleJeu);
 	setGrilleJeu(2, positionCorbeau);
 	pthread_mutex_unlock(&mutexGrilleJeu);
 
-	effacerCarres(9, positionCorbeau*2+8, 2, 1);
+	effacerCarres(9, positionCorbeau * 2 + 8, 2, 1);
 	pthread_exit(NULL);
 }
 
-void HandlerSIGUSR2(int);
+void HandlerSIGUSR2(int)
+{
+	S_CROCO *pos_croco = (S_CROCO *)pthread_getspecific(keySpec);
 
-void HandlerSIGALRM(int){
+	pthread_mutex_lock(&mutexGrilleJeu);
+	if (pos_croco->haut)
+	{
+		if (pos_croco->position == 8)
+			effacerCarres(9, 23);
+		else
+		{
+			effacerCarres(8, pos_croco->position * 2 + 7);
+			setGrilleJeu(1, pos_croco->position);
+		}
+	}
+	else
+	{
+		effacerCarres(12, pos_croco->position * 2 + 8);
+		setGrilleJeu(3, pos_croco->position);
+	}
+	pthread_mutex_unlock(&mutexGrilleJeu);
+
+	pthread_exit(NULL);
+}
+
+void HandlerSIGALRM(int)
+{
 	delaiEnnemis -= 250;
-	if(delaiEnnemis > 2500)
+	if (delaiEnnemis > 2500)
 		alarm(15);
 }
 
-void HandlerSIGINT(int){
+void HandlerSIGINT(int)
+{
 	effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-	setGrilleJeu(2, positionDKJr);
 
-	if(etatDKJr == LIBRE_BAS)
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(2, positionDKJr);
+	pthread_mutex_unlock(&mutexGrilleJeu);
+
+	if (etatDKJr == LIBRE_BAS)
 		pthread_mutex_unlock(&mutexEvenement);
 
 	pthread_exit(NULL);
@@ -755,12 +1019,30 @@ void HandlerSIGQUIT(int)
 	return;
 }
 
-void HandlerSIGCHLD(int);
+void HandlerSIGCHLD(int)
+{
+	effacerCarres(11, positionDKJr * 2 + 7, 2, 2);
 
-void HandlerSIGHUP(int);
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(3, positionDKJr);
+	pthread_mutex_unlock(&mutexGrilleJeu);
 
+	pthread_exit(NULL);
+}
 
-//Destructeur variable spécifique
-void DestructeurVS(void *p){
-   free(p);
+void HandlerSIGHUP(int)
+{
+	effacerCarres(7, positionDKJr * 2 + 7, 2, 2);
+
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(1, positionDKJr);
+	pthread_mutex_unlock(&mutexGrilleJeu);
+
+	pthread_exit(NULL);
+}
+
+// Destructeur variable spécifique
+void DestructeurVS(void *p)
+{
+	free(p);
 }

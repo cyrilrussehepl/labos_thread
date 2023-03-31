@@ -3,48 +3,48 @@
 SDL_Surface *chargerImage(const char *nomImage);
 void afficherImage(int ligne, int colonne, SDL_Surface *image);
 
-SDL_Surface	*ecran,
-		*imgFondEcran,
-		*imgCle1,
-		*imgCle2,
-		*imgCle3,
-		*imgCle4,
-		*imgCorbeau1,
-		*imgCorbeau2,
-		*imgCroco1,
-		*imgCroco2,
-		*imgCroco3,
-		*imgCroco4,
-		*imgCroco5,
-		*imgDKJr1,
-		*imgDKJr2,
-		*imgDKJr3,
-		*imgDKJr4,
-		*imgDKJr5,
-		*imgDKJr6,
-		*imgDKJr7,
-		*imgDKJr8,
-		*imgDKJr9,
-		*imgDKJr10,
-		*imgDKJr11,
-		*imgDKJr12,
-		*imgDKJr13,
-		*imgDKJrEchec,
-		*imgCage1,
-		*imgCage2,
-		*imgCage3,
-		*imgCage4,
-		*imgRireDK,
-		*imgChiffre0,
-		*imgChiffre1,
-		*imgChiffre2,
-		*imgChiffre3,
-		*imgChiffre4,
-		*imgChiffre5,
-		*imgChiffre6,
-		*imgChiffre7,
-		*imgChiffre8,
-		*imgChiffre9;
+SDL_Surface *ecran,
+	 *imgFondEcran,
+	 *imgCle1,
+	 *imgCle2,
+	 *imgCle3,
+	 *imgCle4,
+	 *imgCorbeau1,
+	 *imgCorbeau2,
+	 *imgCroco1,
+	 *imgCroco2,
+	 *imgCroco3,
+	 *imgCroco4,
+	 *imgCroco5,
+	 *imgDKJr1,
+	 *imgDKJr2,
+	 *imgDKJr3,
+	 *imgDKJr4,
+	 *imgDKJr5,
+	 *imgDKJr6,
+	 *imgDKJr7,
+	 *imgDKJr8,
+	 *imgDKJr9,
+	 *imgDKJr10,
+	 *imgDKJr11,
+	 *imgDKJr12,
+	 *imgDKJr13,
+	 *imgDKJrEchec,
+	 *imgCage1,
+	 *imgCage2,
+	 *imgCage3,
+	 *imgCage4,
+	 *imgRireDK,
+	 *imgChiffre0,
+	 *imgChiffre1,
+	 *imgChiffre2,
+	 *imgChiffre3,
+	 *imgChiffre4,
+	 *imgChiffre5,
+	 *imgChiffre6,
+	 *imgChiffre7,
+	 *imgChiffre8,
+	 *imgChiffre9;
 pthread_mutex_t mutexSDL;
 
 // ------------------------------------------------------------------------
@@ -53,12 +53,12 @@ pthread_mutex_t mutexSDL;
 void ouvrirFenetreGraphique()
 {
 	SDL_Rect rect;
-	
+
 	SDL_Init(SDL_INIT_EVERYTHING);
 	ecran = SDL_SetVideoMode(1240, 640, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 
 	imgFondEcran = SDL_DisplayFormat(SDL_LoadBMP("./images/autres/fondEcran.bmp"));
-	
+
 	imgCle1 = chargerImage("./images/autres/cle1.bmp");
 	imgCle2 = chargerImage("./images/autres/cle2.bmp");
 	imgCle3 = chargerImage("./images/autres/cle3.bmp");
@@ -98,14 +98,14 @@ void ouvrirFenetreGraphique()
 	imgChiffre6 = chargerImage("./images/chiffres/Six.bmp");
 	imgChiffre7 = chargerImage("./images/chiffres/Sept.bmp");
 	imgChiffre8 = chargerImage("./images/chiffres/Huit.bmp");
-	imgChiffre9 = chargerImage("./images/chiffres/Neuf.bmp"); 
-        
+	imgChiffre9 = chargerImage("./images/chiffres/Neuf.bmp");
+
 	SDL_WM_SetCaption("Donkey Kong JR", NULL);
 	rect.x = 0;
 	rect.y = 0;
 	SDL_BlitSurface(imgFondEcran, NULL, ecran, &rect);
 	SDL_Flip(ecran);
-	
+
 	pthread_mutex_init(&mutexSDL, NULL);
 }
 
@@ -114,16 +114,19 @@ void ouvrirFenetreGraphique()
 
 void afficherCle(int num)
 {
-	switch(num)
+	switch (num)
 	{
-            case 1:
-                afficherImage(3, 12, imgCle1); break;
-            case 2:
-                afficherImage(3, 13, imgCle2); break;
-            case 3:
-                afficherImage(3, 13, imgCle3); break;
-            case 4:
-                afficherImage(3, 13, imgCle4); 
+	case 1:
+		afficherImage(3, 12, imgCle1);
+		break;
+	case 2:
+		afficherImage(3, 13, imgCle2);
+		break;
+	case 3:
+		afficherImage(3, 13, imgCle3);
+		break;
+	case 4:
+		afficherImage(3, 13, imgCle4);
 	}
 }
 
@@ -132,12 +135,13 @@ void afficherCle(int num)
 
 void afficherCorbeau(int colonne, int num)
 {
-	switch(num)
+	switch (num)
 	{
-            case 1:
-                afficherImage(10, colonne, imgCorbeau1); break;
-            case 2:
-                afficherImage(9, colonne, imgCorbeau2);
+	case 1:
+		afficherImage(10, colonne, imgCorbeau1);
+		break;
+	case 2:
+		afficherImage(9, colonne, imgCorbeau2);
 	}
 }
 
@@ -146,18 +150,22 @@ void afficherCorbeau(int colonne, int num)
 
 void afficherCroco(int colonne, int num)
 {
-	switch(num)
+	switch (num)
 	{
-            case 1:
-                afficherImage(8, colonne, imgCroco1); break;
-            case 2:
-                afficherImage(8, colonne, imgCroco2); break;
-            case 3:
-                afficherImage(9, 23, imgCroco3); break;
-            case 4:
-                afficherImage(12, colonne, imgCroco4); break;
-            case 5:
-                afficherImage(12, colonne, imgCroco5);
+	case 1:
+		afficherImage(8, colonne, imgCroco1);
+		break;
+	case 2:
+		afficherImage(8, colonne, imgCroco2);
+		break;
+	case 3:
+		afficherImage(9, 23, imgCroco3);
+		break;
+	case 4:
+		afficherImage(12, colonne, imgCroco4);
+		break;
+	case 5:
+		afficherImage(12, colonne, imgCroco5);
 	}
 }
 
@@ -166,34 +174,46 @@ void afficherCroco(int colonne, int num)
 
 void afficherDKJr(int ligne, int colonne, int num)
 {
-	switch(num)
+	switch (num)
 	{
-            case 1:
-                afficherImage(ligne, colonne, imgDKJr1); break;
-            case 2:
-                afficherImage(ligne, colonne, imgDKJr2); break;
-            case 3:
-                afficherImage(ligne, colonne, imgDKJr3); break;
-            case 4:
-                afficherImage(ligne, colonne, imgDKJr4); break;
-            case 5:
-                afficherImage(10, 21, imgDKJr5); break;
-            case 6:
-                afficherImage(7, 21, imgDKJr6); break;
-            case 7:
-                afficherImage(ligne, colonne, imgDKJr7); break;
-            case 8:
-                afficherImage(ligne, colonne, imgDKJr8); break;
-            case 9:
-                afficherImage(5, 12, imgDKJr9); break;
-            case 10:
-                afficherImage(3, 11, imgDKJr10); break;
-            case 11:
-                afficherImage(6, 10, imgDKJr11); break;
-            case 12:
-                afficherImage(6, 11, imgDKJr12); break;
-            case 13:
-                afficherImage(11, 7, imgDKJr13);
+	case 1:
+		afficherImage(ligne, colonne, imgDKJr1);
+		break;
+	case 2:
+		afficherImage(ligne, colonne, imgDKJr2);
+		break;
+	case 3:
+		afficherImage(ligne, colonne, imgDKJr3);
+		break;
+	case 4:
+		afficherImage(ligne, colonne, imgDKJr4);
+		break;
+	case 5:
+		afficherImage(10, 21, imgDKJr5);
+		break;
+	case 6:
+		afficherImage(7, 21, imgDKJr6);
+		break;
+	case 7:
+		afficherImage(ligne, colonne, imgDKJr7);
+		break;
+	case 8:
+		afficherImage(ligne, colonne, imgDKJr8);
+		break;
+	case 9:
+		afficherImage(5, 12, imgDKJr9);
+		break;
+	case 10:
+		afficherImage(3, 11, imgDKJr10);
+		break;
+	case 11:
+		afficherImage(6, 10, imgDKJr11);
+		break;
+	case 12:
+		afficherImage(6, 11, imgDKJr12);
+		break;
+	case 13:
+		afficherImage(11, 7, imgDKJr13);
 	}
 }
 
@@ -202,16 +222,19 @@ void afficherDKJr(int ligne, int colonne, int num)
 
 void afficherCage(int num)
 {
-	switch(num)
+	switch (num)
 	{
-            case 1:
-                afficherImage(2, 7, imgCage1); break;
-            case 2:
-                afficherImage(2, 9, imgCage2); break;
-            case 3:
-                afficherImage(4, 7, imgCage3); break;
-            case 4:
-                afficherImage(4, 9, imgCage4);
+	case 1:
+		afficherImage(2, 7, imgCage1);
+		break;
+	case 2:
+		afficherImage(2, 9, imgCage2);
+		break;
+	case 3:
+		afficherImage(4, 7, imgCage3);
+		break;
+	case 4:
+		afficherImage(4, 9, imgCage4);
 	}
 }
 
@@ -224,7 +247,7 @@ void afficherRireDK()
 }
 
 // ------------------------------------------------------------------------
-// afficher la tête de Donkey Kong Jr en cas d'échec 
+// afficher la tête de Donkey Kong Jr en cas d'échec
 
 void afficherEchec(int nbEchecs)
 {
@@ -237,7 +260,7 @@ void afficherEchec(int nbEchecs)
 void afficherScore(int score)
 {
 	afficherChiffre(3, 26, score / 1000);
-	afficherChiffre(3, 27, (score /100) % 10);
+	afficherChiffre(3, 27, (score / 100) % 10);
 	afficherChiffre(3, 28, (score / 10) % 10);
 	afficherChiffre(3, 29, score % 10);
 }
@@ -247,28 +270,37 @@ void afficherScore(int score)
 
 void afficherChiffre(int ligne, int colonne, int chiffre)
 {
-	switch(chiffre)
+	switch (chiffre)
 	{
-            case 0:
-                afficherImage(ligne, colonne, imgChiffre0); break;
-            case 1:
-                afficherImage(ligne, colonne, imgChiffre1); break;
-            case 2:
-                afficherImage(ligne, colonne, imgChiffre2); break;
-            case 3:
-                afficherImage(ligne, colonne, imgChiffre3); break;
-            case 4:
-                afficherImage(ligne, colonne, imgChiffre4); break;
-            case 5:
-                afficherImage(ligne, colonne, imgChiffre5); break;
-            case 6:
-                afficherImage(ligne, colonne, imgChiffre6); break;
-            case 7:
-                afficherImage(ligne, colonne, imgChiffre7); break;
-            case 8:
-                afficherImage(ligne, colonne, imgChiffre8); break;
-            case 9:
-                afficherImage(ligne, colonne, imgChiffre9);
+	case 0:
+		afficherImage(ligne, colonne, imgChiffre0);
+		break;
+	case 1:
+		afficherImage(ligne, colonne, imgChiffre1);
+		break;
+	case 2:
+		afficherImage(ligne, colonne, imgChiffre2);
+		break;
+	case 3:
+		afficherImage(ligne, colonne, imgChiffre3);
+		break;
+	case 4:
+		afficherImage(ligne, colonne, imgChiffre4);
+		break;
+	case 5:
+		afficherImage(ligne, colonne, imgChiffre5);
+		break;
+	case 6:
+		afficherImage(ligne, colonne, imgChiffre6);
+		break;
+	case 7:
+		afficherImage(ligne, colonne, imgChiffre7);
+		break;
+	case 8:
+		afficherImage(ligne, colonne, imgChiffre8);
+		break;
+	case 9:
+		afficherImage(ligne, colonne, imgChiffre9);
 	}
 }
 
@@ -278,10 +310,10 @@ void afficherChiffre(int ligne, int colonne, int chiffre)
 SDL_Surface *chargerImage(const char *nomImage)
 {
 	SDL_Surface *image;
-	
+
 	image = SDL_DisplayFormat(SDL_LoadBMP(nomImage));
 	SDL_SetColorKey(image, SDL_RLEACCEL | SDL_SRCCOLORKEY, SDL_MapRGB(image->format, 255, 255, 255));
-	
+
 	return image;
 }
 
@@ -291,15 +323,15 @@ SDL_Surface *chargerImage(const char *nomImage)
 void afficherImage(int ligne, int colonne, SDL_Surface *image)
 {
 	SDL_Rect rect;
-	
-	pthread_mutex_lock(&mutexSDL);  
-	      
+
+	pthread_mutex_lock(&mutexSDL);
+
 	rect.x = colonne * 40;
 	rect.y = ligne * 40;
 	SDL_BlitSurface(image, NULL, ecran, &rect);
 	SDL_Flip(ecran);
-	
-	pthread_mutex_unlock(&mutexSDL);  
+
+	pthread_mutex_unlock(&mutexSDL);
 }
 
 // ------------------------------------------------------------------------
@@ -307,10 +339,10 @@ void afficherImage(int ligne, int colonne, SDL_Surface *image)
 
 void effacerCarres(int ligne, int colonne, int nbLignes, int nbColonnes)
 {
-	SDL_Rect rect, rectCible;	
-	
-	pthread_mutex_lock(&mutexSDL); 
-	
+	SDL_Rect rect, rectCible;
+
+	pthread_mutex_lock(&mutexSDL);
+
 	rect.x = colonne * 40;
 	rect.y = ligne * 40;
 	rect.w = nbColonnes * 40;
@@ -319,8 +351,8 @@ void effacerCarres(int ligne, int colonne, int nbLignes, int nbColonnes)
 	rectCible.y = ligne * 40;
 	SDL_BlitSurface(imgFondEcran, &rect, ecran, &rectCible);
 	SDL_Flip(ecran);
-        
-	pthread_mutex_unlock(&mutexSDL);  
+
+	pthread_mutex_unlock(&mutexSDL);
 }
 
 // ------------------------------------------------------------------------
@@ -328,10 +360,10 @@ void effacerCarres(int ligne, int colonne, int nbLignes, int nbColonnes)
 
 void effacerPoints(int x, int y, int nbX, int nbY)
 {
-	SDL_Rect rect, rectCible;	
-	
-	pthread_mutex_lock(&mutexSDL); 
-	
+	SDL_Rect rect, rectCible;
+
+	pthread_mutex_lock(&mutexSDL);
+
 	rect.x = x;
 	rect.y = y;
 	rect.w = nbX;
@@ -340,8 +372,8 @@ void effacerPoints(int x, int y, int nbX, int nbY)
 	rectCible.y = y;
 	SDL_BlitSurface(imgFondEcran, &rect, ecran, &rectCible);
 	SDL_Flip(ecran);
-        
-	pthread_mutex_unlock(&mutexSDL);  
+
+	pthread_mutex_unlock(&mutexSDL);
 }
 
 // ------------------------------------------------------------------------
@@ -352,26 +384,24 @@ int lireEvenement()
 {
 	SDL_Event event;
 	int evt = 0;
-	struct timespec temps = { 0, 20000000 };
+	struct timespec temps = {0, 20000000};
 
-        while(evt == 0)
-        {
-            pthread_mutex_lock(&mutexSDL); 
-    
-            while(SDL_PollEvent(&event))
-            {   
-                if(event.type == SDL_QUIT)  
-                    evt = SDL_QUIT;
-                else if(event.type == SDL_KEYDOWN)
-                    evt = event.key.keysym.sym;
-            }
+	while (evt == 0)
+	{
+		pthread_mutex_lock(&mutexSDL);
 
-            pthread_mutex_unlock(&mutexSDL);  
+		while (SDL_PollEvent(&event))
+		{
+			if (event.type == SDL_QUIT)
+				evt = SDL_QUIT;
+			else if (event.type == SDL_KEYDOWN)
+				evt = event.key.keysym.sym;
+		}
 
-            nanosleep(&temps, NULL);  
-        } 
-  
-        return evt;
+		pthread_mutex_unlock(&mutexSDL);
+
+		nanosleep(&temps, NULL);
+	}
+
+	return evt;
 }
-
-
